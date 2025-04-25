@@ -1,0 +1,6 @@
+name: WS2812FX
+version: "1.4.5"
+description: "WS2812 FX Library"
+dependencies:
+  idf: ">=5.0"
+  led_strip: "*"
