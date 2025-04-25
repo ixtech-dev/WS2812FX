@@ -54,16 +54,36 @@
 
 #include "WS2812FX.h"
 
+#if defined(ESP_PLATFORM)
+void WS2812FX::begin() {
+}
+
+void WS2812FX::clear() {
+  memset(pixels, 0, numBytes);
+}
+
+void WS2812FX::show() {
+  led_strip_refresh(_led_strip);
+}
+
+uint8_t WS2812FX::getBrightness() {
+  return brightness;
+}
+
+uint16_t WS2812FX::numPixels() {
+  return numLEDs;
+}
+
+uint32_t WS2812FX::getPixelColor(uint16_t n) {
+  return getRawPixelColor(n);
+}
+
+#endif
+
 void WS2812FX::init() {
   resetSegmentRuntimes();
   begin();
 }
-
-// void WS2812FX::timer() {
-//   for (int j=0; j < 1000; j++) {
-//     uint16_t delay = (MODE_PTR(_seg->mode))();
-//   }
-// }
 
 bool WS2812FX::service() {
   bool doShow = false;
@@ -108,7 +128,14 @@ void WS2812FX::setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void WS2812FX::setPixelColor(uint16_t n, uint8_t r, uint8_t g, uint8_t b, uint8_t w) {
-#if defined(MEGATINYCORE)  // if compiling for an ATtiny device (to conserve memory, no gamma correction)
+#if defined(ESP_PLATFORM)
+  if (brightness) {
+    r = (r * brightness) >> 8;
+    g = (g * brightness) >> 8;
+    b = (b * brightness) >> 8;
+  }
+  led_strip_set_pixel(_led_strip, n, r, g, b);
+#elif defined(MEGATINYCORE)  // if compiling for an ATtiny device (to conserve memory, no gamma correction)
   tinyNeoPixel::setPixelColor(n, r, g, b, w);
 #else
   if(IS_GAMMA) {
@@ -255,6 +282,22 @@ void WS2812FX::decreaseBrightness(uint8_t s) {
 //s = constrain(getBrightness() - s, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
   setBrightness(getBrightness() - s);
 }
+
+
+#if defined(ESP_PLATFORM)
+void WS2812FX::updateLength(uint16_t n) {
+  free(pixels); // Free existing data (if any)
+
+  // Allocate new data -- note: ALL PIXELS ARE CLEARED
+  numBytes = n * ((wOffset == rOffset) ? 3 : 4);
+  if ((pixels = (uint8_t *)malloc(numBytes))) {
+    memset(pixels, 0, numBytes);
+    numLEDs = n;
+  } else {
+    numLEDs = numBytes = 0;
+  }
+}
+#endif
 
 void WS2812FX::setLength(uint16_t b) {
   resetSegmentRuntimes();
