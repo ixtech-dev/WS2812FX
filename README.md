@@ -3,13 +3,15 @@
 WS2812FX - More Blinken for your LEDs!
 ======================================
 
+This is port of the [WS2812FX](https://github.com/kitesurfer1404/WS2812FX) library for use with the Espressif IoT Development Framework (IDF).
+
 This library features a variety of blinken effects for the WS2811/WS2812/NeoPixel LEDs. It is meant to be a drop-in replacement for the Adafruit NeoPixel library with additional features.
 
 Features
 --------
 
 * 55 different effects. And counting.
-* Tested on Arduino Uno/Micro/Nano/Leonardo and ESP8266/ESP32.
+* Tested on ESP32.
 * All effects with printable names - easy to use in user interfaces.
 * FX, speed and brightness controllable on the fly.
 * Ready for sound-to-light (see external trigger example)
@@ -18,39 +20,50 @@ Features
 Download, Install and Example
 -----------------------------
 
-[![arduino-library-badge](https://www.ardu-badge.com/badge/WS2812FX.svg)](https://www.ardu-badge.com/WS2812FX)
-
-You can **search for WS2812FX in the Arduino IDE Library Manager** or install the latest (or development) version manually:
-
-
-* Install the famous [Adafruit NeoPixel library](https://github.com/adafruit/Adafruit_NeoPixel) (v1.1.7 or newer)
+* Install the [Espressif IDF](https://www.espressif.com/en/products/sdks/esp-idf) (v5 or newer)
 * Download this repository.
-* Extract to your Arduino libraries directory.
-* Open Arduino IDE.
-* Now you can choose File > Examples > WS2812FX > ...
-
-See examples for basic usage.
+* Build and flash using the `idf.py` uiltity
 
 In it's most simple form, here's the code to get you started!
 
 ```cpp
 #include <WS2812FX.h>
 
-#define LED_COUNT 30
-#define LED_PIN 12
+extern "C" void app_main(void)
+{
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = DATA_PIN,
+        .max_leds = NUM_LEDS,
+        .led_model = LED_MODEL_WS2812,
+        .color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB,
+        .flags = {
+            .invert_out = false,
+        }
+    };
 
-WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+    led_strip_rmt_config_t rmt_config = {
+        .clk_src = RMT_CLK_SRC_DEFAULT,
+        .resolution_hz = 10 * 1000 * 1000,
+        .mem_block_symbols = 0, // Let the driver choose
+        .flags = {
+            .with_dma = false,
+        }
+    };
 
-void setup() {
-  ws2812fx.init();
-  ws2812fx.setBrightness(100);
-  ws2812fx.setSpeed(200);
-  ws2812fx.setMode(FX_MODE_RAINBOW_CYCLE);
-  ws2812fx.start();
-}
+    led_strip_handle_t led_strip;
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
 
-void loop() {
-  ws2812fx.service();
+    WS2812FX *fx = new WS2812FX(NUM_LEDS, led_strip);
+    fx->init();
+    fx->setBrightness(30);
+    fx->setSpeed(1000);
+    fx->setMode(FX_MODE_RAINBOW_CYCLE);
+    fx->start();
+
+    while (true) {
+        fx->service();
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }
 ```
 
